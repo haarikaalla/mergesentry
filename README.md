@@ -87,11 +87,8 @@ environment, provisioned by your company, never hardcoded.
 
 It's a second pair of eyes in your terminal — the decision is always yours.
 
-## Publishing this yourself
 
-```bash
-pip install build twine
-python -m build
-twine upload dist/*
+
 ``
+View PyPI package-
  https://pypi.org/project/mergesentry/
