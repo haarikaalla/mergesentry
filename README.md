@@ -1,4 +1,4 @@
-# mergesentry
+# MergeSentry
 
 Read-only AI code review, right in your terminal, before you merge.
 
@@ -66,15 +66,6 @@ mergesentry review
 ```
 mergesentry — main → feature/my-branch
 ============================================================
-⚠️  VERDICT: NEEDS_CHANGES
-SUMMARY: Adds retry logic to the payment gateway call and reduces
-the session timeout from 30 to 5 minutes.
-CONCERNS:
-- Retry loop has no backoff cap — risk of hammering the gateway
-  under sustained failure.
-- Session timeout change has no migration note.
-RECOMMENDATION: Add a backoff ceiling before opening the MR.
-============================================================
 
 This is an AI-generated review — use judgment, verify before acting.
 Write access was never used: nothing was posted or changed on the remote.
@@ -102,8 +93,5 @@ It's a second pair of eyes in your terminal — the decision is always yours.
 pip install build twine
 python -m build
 twine upload dist/*
-```
-
-You'll need a PyPI account and API token (pypi.org → Account settings →
-API tokens). Double-check the name `mergesentry` is still free on PyPI
-before you publish — verify at https://pypi.org/project/mergesentry/
+``
+ https://pypi.org/project/mergesentry/
