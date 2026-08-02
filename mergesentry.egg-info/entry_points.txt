@@ -1,0 +1,2 @@
+[console_scripts]
+mergesentry = mergesentry.cli:cli
