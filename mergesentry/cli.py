@@ -6,25 +6,27 @@ Commands:
   mergesentry review    Compare current branch vs base branch, print AI verdict
 """
 import sys
-import click
 
-from .config import Config, ConfigError, DEFAULT_CONFIG_PATH
-from .git_host import get_client, get_current_branch
+import click
+import requests
+
 from .analyzer import analyze
+from .config import DEFAULT_CONFIG_PATH, Config, ConfigError
+from .git_host import get_client, get_current_branch
 from .reporter import print_verdict
 
 
 @click.group()
 def cli():
     """mergesentry — read-only AI review for your branch before you merge."""
-    pass
 
 
 @cli.command()
 def init():
     """Interactively create a .mergesentry.yml in the current directory."""
-    import yaml
     from pathlib import Path
+
+    import yaml
 
     if Path(DEFAULT_CONFIG_PATH).exists():
         click.echo(f"{DEFAULT_CONFIG_PATH} already exists. Delete it first to re-init.")
@@ -73,7 +75,7 @@ def review(head):
 
     try:
         result = client.compare(config.base_branch, head_branch)
-    except Exception as e:
+    except (requests.RequestException, ValueError, KeyError, TypeError) as e:
         click.echo(f"Failed to fetch diff from {config.host}: {e}", err=True)
         sys.exit(1)
 
@@ -84,11 +86,15 @@ def review(head):
     click.echo(f"Sending diff to {config.llm_provider} ({config.llm_model})...")
     try:
         verdict = analyze(config, result["diff"], result["commits"], config.base_branch, head_branch)
-    except Exception as e:
+    except (requests.RequestException, ValueError, KeyError, IndexError, TypeError) as e:
         click.echo(f"LLM call failed: {e}", err=True)
         sys.exit(1)
 
-    print_verdict(verdict, config.base_branch, head_branch)
+    try:
+        print_verdict(verdict, config.base_branch, head_branch)
+    except ValueError as e:
+        click.echo(f"Review incomplete: {e}", err=True)
+        sys.exit(1)
 
 
 if __name__ == "__main__":

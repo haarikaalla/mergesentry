@@ -1,29 +1,53 @@
 # MergeSentry
 
-Read-only AI code review, right in your terminal, before you merge.
+Read-only AI code review in your terminal, before you merge.
 
-Compares your feature branch against `main`/`develop` using a **read-only**
-Personal Access Token (GitHub or GitLab — your choice), sends the diff to
-an LLM of your choice (Claude, GPT, or any OpenAI-compatible enterprise
-endpoint), and prints a plain-language safety verdict. Nothing is ever
-written back to GitHub/GitLab — no comments, no labels, no status checks.
-Just you, your terminal, and a second opinion before you open the MR.
+[![CI](https://github.com/haarikaalla/mergesentry/actions/workflows/ci.yml/badge.svg)](https://github.com/haarikaalla/mergesentry/actions/workflows/ci.yml)
+
+MergeSentry fetches a GitHub or GitLab branch comparison using a read-only
+token, sends the complete supported text diff and commit messages to a chosen
+LLM, and prints a second opinion. It never posts reviews or changes repository
+state. The LLM verdict is advisory; it does not replace tests or human review.
+
+## Why this matters
+
+A review tool that silently drops files or mistakes `NOT_SAFE_TO_MERGE` for
+`SAFE_TO_MERGE` is dangerous. MergeSentry now fails closed when the host omits
+a patch, paginates a comparison, or the diff exceeds its review budget. It
+also requires one exact, structured verdict line before displaying a green
+result.
+
+```text
+Local branch + committed config
+          │
+          ▼
+GitHub / GitLab read-only comparison
+          │  complete patches? host limit? pagination?
+          ▼
+15,000-character review budget
+          │  reject oversized changes rather than truncate
+          ▼
+Selected LLM endpoint
+          │  one exact verdict + summary + recommendation?
+          ▼
+Terminal-only advisory report
+```
 
 ## Why read-only
 
-A write-capable token can post comments, change labels, or (if
-misconfigured) worse. mergesentry never needs any of that — it only reads
-diffs and prints to your terminal — so it only ever asks for the smallest
-possible permission. Nothing it does can modify your repo or your remote.
+A write-capable Git token is unnecessary. MergeSentry calls comparison APIs
+with GET requests and makes no write calls to the Git host. The comparison
+text **does leave the Git host** for the LLM provider you configure. Use a
+company-approved endpoint for private or regulated source code.
 
 ## Install
 
 ```bash
-pip install mergesentry
+python -m pip install -e .
 ```
 
-(Not on PyPI yet? Install locally from source: `pip install -e .` from
-this project's root.)
+The repository includes the source package. A PyPI release, if used, should
+be checked independently for its version and publisher.
 
 ## Setup
 
@@ -59,7 +83,6 @@ scope `read_api` only.
 ## Usage
 
 ```bash
-git push origin feature/my-branch
 mergesentry review
 ```
 
@@ -78,17 +101,31 @@ in `.mergesentry.yml` — mergesentry will POST to it using the standard
 OpenAI chat/completions request shape. `LLM_API_KEY` still comes from your
 environment, provisioned by your company, never hardcoded.
 
-## What this does NOT do
+## Validation and limits
+
+Run the offline tests and command smoke check:
+
+```bash
+python -m pip install -e '.[dev]'
+python -m pytest -q
+mergesentry --help
+```
+
+CI runs the same checks on Python 3.10 and 3.13. Unit tests mock host APIs;
+they do not require tokens or send source code to an LLM.
+
+MergeSentry rejects omitted binary/large patches, paginated comparisons,
+GitHub's 300-file comparison boundary, GitLab timeouts, and diffs over 15,000
+characters. Split large changes into smaller reviews. It does not perform
+static analysis, prove code safety, or guarantee the LLM follows the prompt.
+For production use, pair it with code review, automated tests, and your
+organization's data-handling policy.
+
+## What this does not do
 
 - Does not post MR/PR comments
 - Does not set commit statuses or labels
 - Does not block or approve merges
 - Does not modify anything in your repo or on the remote
 
-It's a second pair of eyes in your terminal — the decision is always yours.
-
-
-
-``
-View PyPI package-
- https://pypi.org/project/mergesentry/
+The merge decision remains yours.
