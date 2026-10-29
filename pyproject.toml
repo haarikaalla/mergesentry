@@ -1,16 +1,19 @@
 [project]
 name = "mergesentry"
-version = "0.1.0"
+version = "0.2.0"
 description = "Read-only AI code review for your branch, right in your terminal, before you merge."
 readme = "README.md"
 requires-python = ">=3.9"
 license = {text = "MIT"}
-authors = [{name = "Your Name"}]
+authors = [{name = "Haarika Alla"}]
 dependencies = [
     "click>=8.1",
     "requests>=2.31",
     "PyYAML>=6.0",
 ]
+
+[project.optional-dependencies]
+dev = ["pytest>=8,<10", "ruff>=0.14,<1"]
 
 [project.scripts]
 mergesentry = "mergesentry.cli:cli"

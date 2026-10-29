@@ -7,7 +7,25 @@ compare(base, head) -> {"diff": str, "commits": [str]}
 Only GET requests are ever made. No write scope is required or used.
 """
 import subprocess
+from urllib.parse import quote
+
 import requests
+
+
+class IncompleteDiffError(ValueError):
+    """The host did not return a complete text diff."""
+
+
+def _require_complete_patches(files, patch_key, response, *, limit=None):
+    if response.links.get("next") or (limit is not None and len(files) >= limit):
+        raise IncompleteDiffError("Comparison is paginated or exceeds the host file limit; split the change.")
+    missing = [item.get("filename") or item.get("new_path") or "<unknown>"
+               for item in files if not item.get(patch_key)]
+    if missing:
+        raise IncompleteDiffError(
+            "Host omitted patches for: " + ", ".join(missing[:5])
+            + (" ..." if len(missing) > 5 else "")
+        )
 
 
 def get_current_branch():
@@ -28,15 +46,20 @@ class GitHubClient:
 
     def compare(self, base, head):
         # GitHub's compare endpoint: read-only, no write scope needed
-        url = f"{self.base_url}/repos/{self.repo}/compare/{base}...{head}"
+        url = f"{self.base_url}/repos/{self.repo}/compare/{quote(base, safe='')}...{quote(head, safe='')}"
         resp = requests.get(url, headers=self.headers, timeout=30)
         resp.raise_for_status()
         data = resp.json()
 
+        files = data.get("files", [])
+        _require_complete_patches(files, "patch", resp, limit=300)
+        if len(data.get("commits", [])) < data.get("ahead_by", 0):
+            raise IncompleteDiffError("Host omitted commit messages; split the change.")
+
         diff_text = ""
-        for f in data.get("files", []):
+        for f in files:
             diff_text += f"\n--- {f['filename']} ---\n"
-            diff_text += f.get("patch", "(binary or too large to show)") + "\n"
+            diff_text += f["patch"] + "\n"
 
         commits = [c["commit"]["message"] for c in data.get("commits", [])]
         return {"diff": diff_text, "commits": commits}
@@ -57,11 +80,15 @@ class GitLabClient:
         )
         resp.raise_for_status()
         data = resp.json()
+        if data.get("compare_timeout") or data.get("overflow"):
+            raise IncompleteDiffError("GitLab comparison timed out or overflowed; split the change.")
+        diffs = data.get("diffs", [])
+        _require_complete_patches(diffs, "diff", resp)
 
         diff_text = ""
-        for d in data.get("diffs", []):
+        for d in diffs:
             diff_text += f"\n--- {d.get('new_path', d.get('old_path'))} ---\n"
-            diff_text += d.get("diff", "") + "\n"
+            diff_text += d["diff"] + "\n"
 
         commits = [c["message"] for c in data.get("commits", [])]
         return {"diff": diff_text, "commits": commits}

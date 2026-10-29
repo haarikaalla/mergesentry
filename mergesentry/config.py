@@ -6,9 +6,9 @@ and credentials from environment variables (never committed).
 """
 import os
 import sys
-import yaml
 from pathlib import Path
 
+import yaml
 
 DEFAULT_CONFIG_PATH = ".mergesentry.yml"
 
